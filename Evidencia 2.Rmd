@@ -1,0 +1,319 @@
+---
+title: "Evidencia 2"
+author: "Pablo César Jiménez Villeda A01703517"
+teacher: "Edgar Acuña González"
+class: "Análisis de biología computacional"
+date: "27/4/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+PARTE 1
+Liga del video:
+https://youtu.be/u0v1n8yzgAk
+
+Las referencias de las fuentes de información usadas en el video se encuentran al final en el apartado de referencias, al final del video y en la descripción del mismo.
+
+PARTE 2
+De las siguientes tres opciones, selecciona una opción para investigar:
+Analizar las secuencias de SARS-CoV-2 reportadas en los 20 países con más casos reportados. Y puedes tratar de responder a la pregunta: ¿Son muy diferentes las variantes entre cada país? ¿Es diferente el SARS-CoV-2 entre las diferentes poblaciones: Asiática, Hispana, Europea o Africana?
+Trabajar con las secuencias de los coronavirus de otras especies que son similares a SARS-CoV-2, para tratar de explicar el fenómeno de zoonosis del virus. Incluye 20 especies reportadas. Puedes trabajar con variantes de SARS-CoV-2 de otros países.
+Estudia la cercanía de SARS-CoV-2 con otros coronavirus humanos que ocasionan enfermedades similares (como MERS). En tu investigación debes trabajar con 20 virus diferentes.
+
+OPCIÓN ELEGIDA:
+Analizar las secuencias de SARS-CoV-2 reportadas en los 20 países con más casos reportados. Y puedes tratar de responder a la pregunta: ¿Son muy diferentes las variantes entre cada país? ¿Es diferente el SARS-CoV-2 entre las diferentes poblaciones: Asiática, Hispana, Europea o Africana?
+
+
+```{r}
+# LIBRERIAS UTILIZADAS EN ESTE REPORTE - REFERENCIAS AL FINAL DEL DOCUMENTO
+library(Biostrings)
+library(seqinr)
+library(ape)
+library(ggtree)
+library(DECIPHER)
+library(ggplot2)
+library(ade4)
+```
+
+```{r}
+#VARIANTES ORDENADAS DE ACUERDO A LOS CASOS REPORTADOS EN CADA PAÍS
+
+#Claves de las variantes
+virus <- c("MW981372", "MW600654", "MW592707","MW580244","MW332241","MW308549","HG996844","MW786740", "MW715073", "MW822592","MW633892","MT470219","MW273783","MW737421","MW884219","MW938089","MT517420","MW981442","MW577029","MW309426")
+
+#Nombres de las variantes, se encuentran ordenadas de pais con más casos a país con menos casos, su nombre indica en primer lugar el nombre de la variante y luego de dos guiones bajos el país al que pertenecen
+variantes <- c("TX-DSHS-5620__Estados_Unidos","GBRC459__India","MASP2C844R2__Brazil","ZA-1__Francia","5473__Rusia","DENIZLI_PAU__Turquia","a953__Reino_unido","Novara_Ceinge-Bicocca-01__Italia","HUD-61635412__España","FFM-ZAF1__Alemania","Cordoba-16161__Argentina","Cali-01__Colombia","PL_MCB_1__Polonia","Ir-3__Iran","133706__Mexico","un-CDC-2-4070016__Peru","IAB_1__Republica_Checa","KRISP-K005325__Sudafrica","Nijmegen1__Paises_Bajos","COVID_CRCHUM_Pre_Freeze_2__Canada")
+
+
+#lista con las secuencias, cada secuencia tiene el nombre de la variante 
+secuancias_bases_vector <- list()
+#ciclo para obtener las secuencias de GenBank y convertirlas a Fasta
+for(i in 1:length(virus)){
+  secuencia <- read.GenBank(virus[i])
+  write.dna(secuencia,  file ="secuencia.fasta", format = "fasta", colsep="")
+  secuencia<-read.fasta(file = "secuencia.fasta",, as.string = TRUE, seqtype = "AA")[[1]]
+  secuencia <- toupper(secuencia)
+  secuencia <- strsplit(secuencia, "")[[1]]
+  secuancias_bases_vector[[i]] <-secuencia
+}
+names(secuancias_bases_vector) <- variantes
+
+
+```
+Funcion usada para calcular la longitud de cada variante y el número de bases
+```{r}
+composicion <- function(sec){
+  contadorA = 0
+  contadorT = 0
+  contadorC = 0
+  contadorG = 0
+  contadorDesc = 0
+  contadorN = 0
+  
+  for (i in sec){
+    if (i == "A"){
+      contadorA= contadorA+1
+    }
+    if (i == "T"){
+      contadorT= contadorT+1
+    }
+    if (i == "C"){
+      contadorC= contadorC+1
+    }
+    if (i == "G"){
+      contadorG= contadorG+1
+    }
+    if (i == "-"){
+      contadorDesc= contadorDesc+1
+    }
+    if (i == "N"){
+      contadorN= contadorN+1
+    }
+  }
+  
+   total = contadorA + contadorT + contadorC + contadorG
+  Porcentaje_GC= ((contadorG+contadorC)*100)/total
+  
+  return(c(A = contadorA, T = contadorT, C = contadorC, G = contadorG, GC=Porcentaje_GC))
+  
+}
+```
+
+Calcula la longitud de las secuencias que incluyas.
+```{r}
+for(j in 1:length(secuancias_bases_vector)) {
+  cat("El tamaño de la secuencia de la variante del SARS-CoV-2 ",names(secuancias_bases_vector[j])," recopilada reciéntemente es de: ",length(secuancias_bases_vector[[j]]),"\n")
+}
+
+```
+
+Crea una sola gráfica donde se comparen el número de bases de ADN que componen todas las variantes del virus. 
+```{r}
+# Lista que contiene los porcentajes de GC de cada variable
+bases_variantes <- list()
+GC_variantes <- list()
+#ciclo para guardar bases y Gc en listas con los nombres de cada variante
+for(i in 1:length(secuancias_bases_vector)) {
+  contenido <- composicion(secuancias_bases_vector[[i]])
+  bases_variantes[[i]] <- head(contenido,4)
+  GC_variantes[[i]] <- tail(contenido,1)
+}
+names(bases_variantes) <- variantes
+names(GC_variantes) <- variantes
+
+#nucleotidos
+bases <- c("A", "T", "C", "G")
+```
+
+GRAFICACIÓN
+```{R, fig.width=15, fig.height=7}
+#Comparación de las bases de las secuancias de las variantes
+color <- c("red","darkblue", "green", "yellow", "orange", "purple", "violet", "brown", "pink", "black","aquamarine4","azure4","chartreuse","chocolate4","coral","cornflowerblue","cornsilk2","cyan","darkgoldenrod","dodgerblue")
+# length(color)
+
+#Grafica de la cantidad de bases de todas las secuencias
+bases_variantes_matriz <- matrix(unlist(bases_variantes), ncol=4, byrow = TRUE)
+rownames(bases_variantes_matriz) <- variantes
+colnames(bases_variantes_matriz) <- bases
+
+barplot(as.table(bases_variantes_matriz), xlab = "Elementos de la secuencia", ylab="Frecuencia", main="Comparación de la composición de las bases entre todas las variantes", col=color, beside=TRUE, legend=TRUE, ylim = c(5000, 10000), xpd = FALSE, cex.axis = 0.5)
+# legend("topleft")
+```
+```{R, fig.width=15, fig.height=10}
+#Grafica de la comparación de los porcentajes de GC
+GC_variantes_matriz <- matrix(unlist(GC_variantes), ncol=1, byrow = TRUE)
+rownames(GC_variantes_matriz) <- variantes
+
+barplot(GC_variantes_matriz, xlab = "Porcentaje", ylab="Proporción %", main="Comparación del porcentaje de GC entre todas las variantes", col=color, beside=TRUE, legend=TRUE, ylim = c(37.9, 38.1), xpd = FALSE, cex.axis = 0.5)
+```
+Agrega un análisis jerárquico global obtenido de las secuencias que se seleccionaron para estudiar.
+```{r}
+virus_sequences <- read.GenBank(virus)
+
+for(i in 1:length(virus_sequences)){
+  names(virus_sequences)[i] = variantes[i] 
+}
+write.dna(virus_sequences,  file ="virus_seqs.fasta", format = "fasta", append =FALSE, nbcol = 6, colsep = "", colw = 10)
+virus_seq_not_align <- readDNAStringSet("virus_seqs.fasta", format = "fasta")
+virus_seq_not_align <- OrientNucleotides(virus_seq_not_align)
+virus_seq_align <- AlignSeqs(virus_seq_not_align)
+writeXStringSet(virus_seq_align, file="virus_seq_align.fasta")
+virus_aligned <- read.alignment("virus_seq_align.fasta", format = "fasta")
+matriz_distancia <- dist.alignment(virus_aligned, matrix = "similarity")
+virus_tree <- nj(matriz_distancia)
+virus_tree <- ladderize(virus_tree)
+```
+
+````{r, fig.width=15, fig.height=7}
+library(ggmsa)
+plot_virus <- ggtree(virus_tree, color="coral",size=2) + geom_tiplab() + geom_nodepoint() + geom_tippoint() + ggtitle("Árbol filogenético de las variantes de los coronavirus de los países con más casos reportados")
+plot_virus 
+# data = tidy_msa(virus_seq_not_align, 200,220)
+# plot_virus + geom_facet(geom = geom_msa, data = data,  panel = 'Alineación de bases', color = "Chemistry_AA") +xlim_tree(1)
+
+```
+
+GRAFICAS ADICIONALES PARA RESPONDER LA PREGUNTA
+```{r,fig.width=15, fig.height=10}
+temp <- as.data.frame(as.matrix(matriz_distancia))
+table.paint(temp, cleg=0, clabel.row=1, clabel.col=1)
+```
+
+ANÁLISIS | INTERPRETACIÓN DE LAS GRÁFICAS
+
+Durante este reporte se obtuvieron las secuencias de las variantes más recientes en cada país para aquellos en el top 20 de más casos registrados, sin embargo, dos países en la lista no habían reportado ninguna variante por lo que se optó por incluir a Países Bajos y a Canadá en este estudio. Con el objetivo de descubrir las distintas relaciones entre las variantes se produjeron distintas gráficas que contrastaban información de los virus como la cantidad de bases de cada uno, su porcentaje de GC, un árbol filogenético y la representación de la matriz de distancia usada para construir dicho árbol. Primero, para poder analizar los resultados es importante definir cómo se han dado tantas variantes. 
+Cuando un virus se reproduce, este hace copias de sí mismo en un proceso llamado replicación, en el que cada copia cuenta una probabilidad pequeña de presentar pequeños cambios llamados mutaciones, un virus que ha sufrido una o varias mutaciones es una variante del virus original. (V´kovski, et al. 2020).
+A partir de estos resultados se puede analizar que los tamaños de las secuencias no son muy distintos entre ellas, sin embargo, destaca la variante de Estados Unidos debido a que en su secuencia hay varios datos del tipo N, estas similitudes en la cantidad de bases indica que el virus se ha transformado durante esta pandemia, puesto que aunque comparten un ancestro común, todas tienen tamaños diferentes y composiciones que varían ligeramente entre ellas. Dada la naturaleza aleatoria de las mutaciones que suceden durante la replicación, podría haber más cambios de los indicados por esta representación comparativa de las secuencias. Por lo que se optó por construir una gráfica comparando el contenido de GC de las variantes, es decir, la proporción de la estructura de una secuencia compuesta de Guanina y Citosina, al conocer esta proporción se podrán comparar las variantes de mejor forma pues no se depende de si la secuencias cuenta con datos del tipo N o no. 
+Este porcentaje indica la estabilidad de las secuencias, ya que estas bases presentan un triple enlace de puente de hidrógeno, haciendo la secuencia más estable por lo que hará falta más energía para separar las secuencias con un mayor GC, lo que implica una temperatura de desnaturalización se vuelve más alta, es decir, el virus puede ser más resistente. Esto se debe a que la desnaturalización causa que un cambio estructural en ciertas proteínas que a su vez pierden su óptimo funcionamiento. Este proceso se puede dar gracias a eventos exteriores al virus como un aumento en la temperatura o cambios en el pH. (Wang, et al. 2004).
+Al analizar dicha gráfica, se pudo observar que la variante que más destaca es la de Estados Unidos, pues esta cuenta con el mayor porcentaje de GC, después de esta sigue la variante iraní. cabe resaltar que las variantes con el menor contenido de GC fueron las encontradas en la India y en Sudáfrica. Aunque no se puede observar una clara correlación entre la cantidad de casos detectados en su país y el porcentaje de GC de las variantes, al analizar las características de estos países se puede observar cómo es la tendencia evolutiva de las variantes. Por ejemplo, Estados Unidos es un país rico que aunque no supo manejar la situación, si cuenta con los servicios de salud necesarios para sanitizar ciertos espacios y ayudar a sus ciudadanos a recuperarse, por lo que hace sentido ver que en este lugar el virus fue adquiriendo una mayor resistencia a dichas medidas al ganar un mayor porcentaje de GC, puesto que algunos métodos de sanitización consisten en provocar la desnaturalización en el virus y la selección natural pudo haber hecho que sólo las variantes con mayor GC tuvieran éxito. Irán, aunque no es un lugar famoso por sus medidas de contención, sí cuenta con altas temperaturas que pueden provocar el mismo efecto en el virus, lo que podría indicar por qué en este lugar el patógeno también obtuvo un mayor porcentaje de GC. En cambio, lugares como la India y Sudáfrica cuentan con condiciones insalubres en las que para el virus sería fácil propagarse, por lo que el virus nunca tuvo que pasar por el mismo proceso de selección natural que en las dos regiones previamente mencionadas para hacerse más resistente a la desnaturalización.
+Finalmente, se generó una matriz de distancia al alinear las secuencias de los virus para analizar qué tanto difieren entre ellos, cabe resaltar que aunque las diferencias puedan ser pequeñas, estas pueden afectar en gran medida a factores como la resistencia y la infectividad del mismo. Ahora, al analizar tanto las ramas como las relaciones entre cada variante, donde en la representación gráfica entre más oscura sea la intersección habrá una mayor diferencia, se pueden observar ciertas pistas de cómo el virus se propagó e incluso se pueden identificar dentro de las ramas aquellas variantes con cierto parentesco. Nuevamente, las variantes de Estados Unidos y de Irán son las que generan un mayor contraste respecto a las otras, pues tanto en el árbol como en la representación de la matriz estos en su mayoría presentan colores muy oscuros respecto a las demás, sin embargo, Estados Unidos sí presenta cierto grado de similitud, aunque muy leve, con otros países, esto se puede explicar debido a que Irán es el único país de medio oriente en la lista, por lo que se puede intuir que gracias a sus muchos contagios y poca interacción con otros países gracias a los conflictos políticos de la zona, esta variante se ha desarrollado de forma única. Además, en esta gráfica, exceptuando a Irán por las razones antes mencionadas, entre menor es el número de casos se presentan más similitudes con otras variantes, esto se debe a que su ancestro en común no está tan alejado y por esto al contar con relativamente pocas replicaciones, el virus se ha mantenido hasta cierto punto en estos países. Incluso, se puede analizar que los países comparten un gran grado de similitud con sus países vecinos, por ejemplo, aunque Francia cuanta con muchos casos, su variante se asemeja mucho a la de Alemania, lo que se ve representado en ambos gráficos pues pertenecen a la misma rama, esto podría indicar que los viajes de los ciudadanos entre estos países han provocado que las variantes se asemejen. Del mismo modo, existen relaciones que aunque parezcan aleatorias, pueden indicar que alguien que viajaba en avión esparció una variante en un país generando una nueva mientras la original se mantenía en el país del viajero y seguía mutando, lo que podría explicar las similitudes entre la variante de Francia y la de Sudáfrica o la de Reino Unido y la de Brasil. 
+En conclusión, las diferencias entre variantes dependen de si un país comparte frontera con el otro y del contexto del país en el que se encuentra la variante, entre países vecinos como Alemania y Francia no existe una gran diferencia, continentalmente hablando, se puede encontrar que las variantes del mismo continente tienden a ser más similares entre sí que con otros países debido al esparcimiento de variantes a través de las fronteras de los mismos, exceptuando casos como el de Sudáfrica cuya similitudes dependen de un ancestro común de la variante actual que llegó de otro continente. Por tanto, se puede afirmar que el SARS CoV 2 de cada una de estas poblaciones no es necesariamente diferente como se ha demostrado con el caso de Sudáfrica o Brasil, puesto que estas similitudes pueden depender de las mutaciones del virus y de los lazos que pueden tener con variantes de otro continente, ya que él virus que inició a infectar a un país tuvo que haber provenido de otro por lo que al final, todas las variantes del país comparten a un ancestro en común, como queda demostrado en la rama donde se ubican Alemania, Francia y Sudáfrica. Aunque se han podido analizar los cambios en el GC, estos son cambios muy pequeños en la estructura, por lo que tampoco se puede afirmar que estas variantes son totalmente diferentes.
+
+
+Referencias:
+```{r}
+# citation("seqinr")
+# citation("Biostrings")
+# citation("ape")
+# citation("ggtree")
+# citation("DECIPHER")
+# citation("ggplot2")
+# citation("ade4")
+# citation("ggmsa")
+
+```
+ANÁLISIS:
+Johns Hopkins Coronavirus Resource Center .(2021). COVID-19 Map - Johns Hopkins Coronavirus Resource Center. Retrieved 20 April 2021, from https://coronavirus.jhu.edu/map.html
+
+V'kovski, P., Kratzel, A., Steiner, S., Stalder, H., & Thiel, V. (2021). Coronavirus biology and replication: implications for SARS-CoV-2. Nature reviews. Microbiology, 19(3), 155–170. https://doi.org/10.1038/s41579-020-00468-6
+
+Wang, Y., Wu, X., Wang, Y., Li, B., Zhou, H., Yuan, G., Fu, Y., & Luo, Y. (2004). Low stability of nucleocapsid protein in SARS virus. Biochemistry, 43(34), 11103–11108. https://doi.org/10.1021/bi049194b
+
+VIDEO:
+Lam, T.TY., Jia, N., Zhang, YW. et al. Identifying SARS-CoV-2-related coronaviruses in Malayan pangolins. Nature 583, 282–285 (2020). https://doi.org/10.1038/s41586-020-2169-0
+
+Yang, Y. L., Yu, J. Q., & Huang, Y. W. (2020). Swine enteric alphacoronavirus (swine acute diarrhea syndrome coronavirus): An update three years after its discovery. Virus research, 285, 198024. https://doi.org/10.1016/j.virusres.2020.198024
+
+Zhou, H., Chen, X., Hu, T., Li, J., Song, H., Liu, Y., Wang, P., Liu, D., Yang, J., Holmes, E. C., Hughes, A. C., Bi, Y., & Shi, W. (2020). A Novel Bat Coronavirus Closely Related to SARS-CoV-2 Contains Natural Insertions at the S1/S2 Cleavage Site of the Spike Protein. Current biology : CB, 30(19), 3896. https://doi.org/10.1016/j.cub.2020.09.030
+
+Fung, T. S., & Liu, D. X. (2019). Human Coronavirus: Host-Pathogen Interaction. Annual review of microbiology, 73, 529–557. https://doi.org/10.1146/annurev-micro-020518-115759
+
+Rabaan, A. A., Al-Ahmed, S. H., Haque, S., Sah, R., Tiwari, R., Malik, Y. S., Dhama, K., Yatoo, M. I., Bonilla-Aldana, D. K., & Rodriguez-Morales, A. J. (2020). SARS-CoV-2, SARS-CoV, and MERS-COV: A comparative overview. Le infezioni in medicina, 28(2), 174–184.
+
+
+LIBRERIAS:
+Charif, D. and Lobry, J.R. (2007)
+
+H. Pagès, P. Aboyoun, R. Gentleman and S. DebRoy (2020). Biostrings: Efficient manipulation of biological strings.
+R package version 2.58.0. https://bioconductor.org/packages/Biostrings
+
+Paradis E. & Schliep K. 2019. ape 5.0: an environment for modern phylogenetics and evolutionary analyses in R.
+Bioinformatics 35: 526-528.
+
+Guangchuang Yu, David Smith, Huachen Zhu, Yi Guan, Tommy Tsan-Yuk Lam. ggtree: an R package for visualization and
+annotation of phylogenetic trees with their covariates and other associated data. Methods in Ecology and Evolution
+2017, 8(1):28-36. doi:10.1111/2041-210X.12628
+  
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016.
+  
+Wright ES (2016). “Using DECIPHER v2.0 to Analyze Big Biological Sequence Data in R.” _The R Journal_, *8*(1),
+352-359.
+
+H. Wickham. ggplot2: Elegant Graphics for Data Analysis. Springer-Verlag New York, 2016.
+
+Dray S, Dufour A (2007). “The ade4 Package: Implementing the Duality Diagram for Ecologists.” _Journal of Statistical
+Software_, *22*(4), 1-20. doi: 10.18637/jss.v022.i04 (URL: https://doi.org/10.18637/jss.v022.i04).
+
+ Guangchuang Yu and Lang Zhou (2021). ggmsa: Plot Multiple Sequence Alignment using 'ggplot2'. R package version
+0.0.6. https://CRAN.R-project.org/package=ggmsa
+
+
+VARIANTES:
+US
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 22 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW981372.1?report=fasta
+
+india
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 23 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW600654.1?report=fasta
+
+BRAZIL
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 22 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW592707.1?report=fasta
+
+FRANCE
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 22 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW580244.1?report=fasta
+
+RUSSIA
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 22 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW332241.1?report=fasta
+
+TURKEY
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 22 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW308549.1?report=fasta
+
+UNITED KINGDOM
+Severe acute respiratory syndrome coronavirus 2 isolate a953 genome as - Nucleotide - NCBI. (2021). Retrieved 23 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/HG996844.1?report=fasta
+
+ITALY
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 22 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW786740.1?report=fasta
+
+SPAIN
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 22 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW715073
+
+GERMANY
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW822592.1?report=fasta
+
+ARGENTINA
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW633892.1?report=fasta
+
+COLOMBIA
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MT470219.1?report=fasta
+
+POLAND
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW273783.1?report=fasta
+
+IRAN
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW737421.1?report=fasta
+
+MEXICO
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW884219.1?report=fasta
+
+UKRAINE
+
+PERU
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW938089.1?report=fasta
+
+INDONESIA
+
+CZECHIA
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MT517420.1?report=fasta
+
+
+SOUTH AFRICA
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW981442.1?report=fasta
+
+PAISES BAJOS
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW577029.1?report=fasta
+
+CANADÁ
+Severe acute respiratory syndrome coronavirus 2 isolate SARS-CoV-2/hum - Nucleotide - NCBI. (2021). Retrieved 27 April 2021, from https://www.ncbi.nlm.nih.gov/nuccore/MW309426.1?report=fasta
+
